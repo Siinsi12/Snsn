@@ -1,38 +1,36 @@
-import os
-import telebot
-import yt_dlp
+import time
 
-TOKEN = '8559656998:AAEnqdnsj0FrucZBvrK86fLg64nPxVKOuqM'
-bot = telebot.TeleBot(TOKEN)
+class DownloadToken:
+    def __init__(self, token_string: str, lifespan_hours: int = 24):
+        self.token_string = token_string
+        self.created_at = time.time()  # وقت إنشاء التوكن الحالي
+        self.lifespan_seconds = lifespan_hours * 3600  # العمر الاقتصادي بالثواني
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "هلا بيك! دز لي رابط أي مقطع فيديو (من يوتيوب، تيك توك، وغيرها) حته أحمله لك.")
+    def is_valid(self) -> bool:
+        """التحقق مما إذا كان التوكن ما زال ضمن عمر الصلاحية المسموح"""
+        current_time = time.time()
+        elapsed_time = current_time - self.created_at
+        return elapsed_time < self.lifespan_seconds
 
-@bot.message_handler(func=lambda message: True)
-def download_video(message):
-    url = message.text
-    if not url.startswith('http'):
-        bot.reply_to(message, "عيني، هذا مو رابط صحيح. دز رابط فيديو حقيقي.")
-        return
-
-    bot.reply_to(message, "جاري تحميل الفيديو، انتظر ثواني...")
-    
-    ydl_opts = {
-        'outtmpl': 'video.%(ext)s',
-        'format': 'best',
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+    def get_remaining_time(self) -> str:
+        """معرفة الوقت المتبقي لصلاحية التوكن"""
+        current_time = time.time()
+        remaining = self.lifespan_seconds - (current_time - self.created_at)
+        if remaining <= 0:
+            return "انتهت صلاحية التوكن!"
         
-        with open(filename, 'rb') as video:
-            bot.send_video(message.chat.id, video)
-        
-        os.remove(filename)
-    except Exception as e:
-        bot.reply_to(message, f"صار خطأ بالتحميل: {e}")
+        hours = int(remaining // 3600)
+        minutes = int((remaining % 3600) // 60)
+        return f"{hours} ساعة و {minutes} دقيقة متبقية."
 
-bot.infinity_polling()
+# --- مثال على الاستخدام ---
+# 1. إنشاء توكن جديد بمدة صلاحية 12 ساعة مثلاً (أو أي عدد ساعات تفضله)
+my_token = DownloadToken(token_string="TTP_SAMPLE_TOKEN_XYZ", lifespan_hours=12)
+
+# 2. فحص حالة التوكن قبل عملية التحميل
+if my_token.is_valid():
+    print("التوكن ساري، مسموح بالتحميل ✅")
+    print(my_token.get_remaining_time())
+    # ضع هنا كود التحميل الفعلي (مثل استخدام yt-dlp أو رابط API)
+else:
+    print("❌ رفض الطلب: انتهت صلاحية التوكن، يرجى تجديده.")
