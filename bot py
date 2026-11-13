@@ -1,0 +1,38 @@
+import os
+import telebot
+import yt_dlp
+
+TOKEN = '8559656998:AAEnqdnsj0FrucZBvrK86fLg64nPxVKOuqM'
+bot = telebot.TeleBot(TOKEN)
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "هلا بيك! دز لي رابط أي مقطع فيديو (من يوتيوب، تيك توك، وغيرها) حته أحمله لك.")
+
+@bot.message_handler(func=lambda message: True)
+def download_video(message):
+    url = message.text
+    if not url.startswith('http'):
+        bot.reply_to(message, "عيني، هذا مو رابط صحيح. دز رابط فيديو حقيقي.")
+        return
+
+    bot.reply_to(message, "جاري تحميل الفيديو، انتظر ثواني...")
+    
+    ydl_opts = {
+        'outtmpl': 'video.%(ext)s',
+        'format': 'best',
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+        
+        with open(filename, 'rb') as video:
+            bot.send_video(message.chat.id, video)
+        
+        os.remove(filename)
+    except Exception as e:
+        bot.reply_to(message, f"صار خطأ بالتحميل: {e}")
+
+bot.infinity_polling()
